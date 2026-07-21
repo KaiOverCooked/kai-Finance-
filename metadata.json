@@ -1,0 +1,6 @@
+{
+  "name": "Kai Finance",
+  "description": "A luxury monochrome personal finance manager with AI insights, budgeting, analytics, goals, and offline persistence.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
