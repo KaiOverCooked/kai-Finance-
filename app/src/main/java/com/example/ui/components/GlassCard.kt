@@ -19,7 +19,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.dp
 fun GlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 20.dp,
+    useGradient: Boolean = true,
     onClick: (() -> Unit)? = null,
     testTag: String = "glass_card",
     content: @Composable BoxScope.() -> Unit
@@ -41,23 +44,42 @@ fun GlassCard(
         label = "cardScale"
     )
 
+    val shape = RoundedCornerShape(cornerRadius)
+    val cardBackgroundBrush = if (useGradient) {
+        Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.08f),
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+            )
+        )
+    } else null
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .scale(scale)
             .testTag(testTag),
-        shape = RoundedCornerShape(cornerRadius),
+        shape = shape,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
+            containerColor = if (useGradient) Color.Transparent else MaterialTheme.colorScheme.surfaceVariant
         ),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+            color = Color.White.copy(alpha = 0.10f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .then(
+                    if (cardBackgroundBrush != null) {
+                        Modifier.background(cardBackgroundBrush)
+                    } else {
+                        Modifier
+                    }
+                )
                 .then(
                     if (onClick != null) {
                         Modifier.clickable(

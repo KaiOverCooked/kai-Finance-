@@ -27,20 +27,20 @@ private val DarkColorScheme = darkColorScheme(
     onPrimaryContainer = PureWhite,
     secondary = SilverLight,
     onSecondary = DarkCharcoal,
-    background = DarkCharcoal,
+    background = ObsidianBlack,
     onBackground = PureWhite,
-    surface = DarkCharcoal,
+    surface = ObsidianBlack,
     onSurface = PureWhite,
     surfaceVariant = CardDark,
     onSurfaceVariant = SilverMuted,
     outline = CardBorderDark,
-    outlineVariant = Color(0xFF3A3A3A)
+    outlineVariant = Color(0x33FFFFFF)
 )
 
 private val AmoledColorScheme = darkColorScheme(
     primary = PrimaryMonochromeDark,
     onPrimary = OnPrimaryMonochromeDark,
-    primaryContainer = Color(0xFF101010),
+    primaryContainer = CardDark,
     onPrimaryContainer = PureWhite,
     secondary = SilverLight,
     onSecondary = ObsidianBlack,
@@ -48,10 +48,10 @@ private val AmoledColorScheme = darkColorScheme(
     onBackground = PureWhite,
     surface = ObsidianBlack,
     onSurface = PureWhite,
-    surfaceVariant = Color(0xFF141414),
+    surfaceVariant = CardDark,
     onSurfaceVariant = SilverMuted,
-    outline = Color(0xFF262626),
-    outlineVariant = Color(0xFF333333)
+    outline = CardBorderDark,
+    outlineVariant = Color(0x33FFFFFF)
 )
 
 private val LightColorScheme = lightColorScheme(

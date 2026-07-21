@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -66,46 +68,46 @@ fun KaiBottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
             .navigationBarsPadding(),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f),
-        tonalElevation = 8.dp,
-        shadowElevation = 12.dp
+        color = Color.Black.copy(alpha = 0.92f),
+        border = BorderStroke(
+            width = 1.dp,
+            color = Color.White.copy(alpha = 0.10f)
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
             mainNavItems.forEach { item ->
                 val isSelected = currentRoute == item.route
                 val iconColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                    targetValue = if (isSelected) Color.Black else Color.White.copy(alpha = 0.4f),
                     label = "iconColor"
                 )
                 val bgColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.0f),
+                    targetValue = if (isSelected) Color.White else Color.Transparent,
                     label = "bgColor"
                 )
                 val scale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.1f else 1.0f,
+                    targetValue = if (isSelected) 1.05f else 1.0f,
                     label = "iconScale"
                 )
 
                 Box(
                     modifier = Modifier
                         .scale(scale)
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(18.dp))
                         .background(bgColor)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = { onNavigate(item.route) }
                         )
-                        .padding(horizontal = 10.dp, vertical = 10.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .testTag("nav_${item.route}"),
                     contentAlignment = Alignment.Center
                 ) {

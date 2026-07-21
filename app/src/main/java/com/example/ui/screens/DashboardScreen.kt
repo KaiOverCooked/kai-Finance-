@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +53,7 @@ import com.example.data.local.entity.TransactionEntity
 import com.example.data.local.entity.TransactionType
 import com.example.ui.components.CashFlowChart
 import com.example.ui.components.GlassCard
+import com.example.ui.theme.IncomeGreen
 import com.example.ui.viewmodel.DashboardUiState
 import java.text.NumberFormat
 import java.util.Locale
@@ -74,7 +77,7 @@ fun DashboardScreen(
             .padding(horizontal = 16.dp, vertical = 16.dp)
             .testTag("dashboard_screen")
     ) {
-        // Top Header
+        // Top Header (Kai Finance with minimalist badge and advisor action)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -82,44 +85,62 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "KAI FINANCE",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 2.sp
-                )
-                Text(
-                    text = "Executive Overview",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color.Black)
+                    )
+                }
+                Column {
+                    Text(
+                        text = "KAI FINANCE",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "EXECUTIVE OVERVIEW",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.4f),
+                        letterSpacing = 1.2.sp
+                    )
+                }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier
-                        .size(42.dp)
-                        .testTag("ai_insight_header_btn")
-                        .clip(CircleShape)
-                ) {
-                    IconButton(onClick = onNavigateToAiAdvisor) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = "AI Advisor",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFF1A1A1A),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                modifier = Modifier
+                    .size(44.dp)
+                    .testTag("ai_insight_header_btn")
+            ) {
+                IconButton(onClick = onNavigateToAiAdvisor) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "AI Advisor",
+                        tint = Color.White
+                    )
                 }
             }
         }
 
-        // Hero Net Worth Card
+        // Hero Balance Section
         GlassCard(
-            modifier = Modifier.padding(bottom = 16.dp),
+            modifier = Modifier.padding(bottom = 20.dp),
             testTag = "total_balance_card"
         ) {
             Column {
@@ -129,76 +150,86 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "TOTAL NET WORTH",
+                        text = "TOTAL BALANCE",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.5.sp
+                        color = Color(0xFFBDBDBD),
+                        letterSpacing = 2.sp,
+                        fontWeight = FontWeight.Medium
                     )
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.White.copy(alpha = 0.15f)
+                        shape = RoundedCornerShape(16.dp),
+                        color = IncomeGreen.copy(alpha = 0.15f)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.TrendingUp,
-                                contentDescription = null,
-                                tint = Color.Green,
-                                modifier = Modifier.size(14.dp)
+                            Text(
+                                text = "+4.2%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = IncomeGreen,
+                                fontWeight = FontWeight.SemiBold
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "+12.4%",
+                                text = "vs last month",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.Green
+                                color = Color.White.copy(alpha = 0.35f),
+                                fontSize = 10.sp
                             )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "$currencySymbol${String.format(Locale.US, "%,.2f", state.totalBalance)}",
                     style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
+                    color = Color.White,
+                    fontWeight = FontWeight.Light,
+                    letterSpacing = (-1.5).sp
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
                         onClick = onNavigateToAddTransaction,
                         modifier = Modifier
                             .weight(1f)
+                            .height(48.dp)
                             .testTag("add_transaction_btn"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = Color.White,
+                            contentColor = Color.Black
                         ),
-                        shape = RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Add Entry")
+                        Text("Send / Entry", fontWeight = FontWeight.SemiBold)
                     }
 
-                    OutlinedButton(
+                    Button(
                         onClick = onNavigateToAiAdvisor,
                         modifier = Modifier
                             .weight(1f)
+                            .height(48.dp)
                             .testTag("ai_audit_btn"),
-                        shape = RoundedCornerShape(14.dp)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1A1A1A),
+                            contentColor = Color.White
+                        ),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kai Advisor")
+                        Text("Kai Advisor", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -364,19 +395,20 @@ fun RecentTransactionItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (transaction.type == TransactionType.INCOME) Color.Green.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.15f),
-                    modifier = Modifier.size(40.dp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black)
+                        .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (transaction.type == TransactionType.INCOME) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                            contentDescription = null,
-                            tint = if (transaction.type == TransactionType.INCOME) Color.Green else Color.Red,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Text(
+                        text = transaction.title.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -384,23 +416,26 @@ fun RecentTransactionItem(
                 Column {
                     Text(
                         text = transaction.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = transaction.category.name.lowercase().replaceFirstChar { it.uppercase() },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = transaction.category.name.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp
                     )
                 }
             }
 
+            val isIncome = transaction.type == TransactionType.INCOME
             Text(
-                text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}$currencySymbol${String.format(Locale.US, "%,.2f", transaction.amount)}",
+                text = "${if (isIncome) "+" else "-"}$currencySymbol${String.format(Locale.US, "%,.2f", transaction.amount)}",
                 style = MaterialTheme.typography.titleMedium,
-                color = if (transaction.type == TransactionType.INCOME) Color.Green else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
+                color = if (isIncome) IncomeGreen else Color.White,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
