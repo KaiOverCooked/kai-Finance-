@@ -67,7 +67,10 @@ import androidx.compose.ui.unit.dp
 import com.example.data.local.entity.TransactionCategory
 import com.example.data.local.entity.TransactionEntity
 import com.example.data.local.entity.TransactionType
+import androidx.compose.foundation.border
+import androidx.compose.ui.unit.sp
 import com.example.ui.components.GlassCard
+import com.example.ui.theme.IncomeGreen
 import com.example.ui.viewmodel.TransactionTypeFilter
 import java.text.NumberFormat
 import java.util.Locale
@@ -242,19 +245,20 @@ fun TransactionRowItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (transaction.type == TransactionType.INCOME) Color.Green.copy(alpha = 0.15f) else Color.Red.copy(alpha = 0.15f),
-                    modifier = Modifier.size(44.dp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.Black)
+                        .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (transaction.type == TransactionType.INCOME) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                            contentDescription = null,
-                            tint = if (transaction.type == TransactionType.INCOME) Color.Green else Color.Red,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Text(
+                        text = transaction.title.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -262,24 +266,27 @@ fun TransactionRowItem(
                 Column {
                     Text(
                         text = transaction.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                        fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "${transaction.category.name.lowercase().replaceFirstChar { it.uppercase() }}${if (transaction.note.isNotBlank()) " • " + transaction.note else ""}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "${transaction.category.name.uppercase()}${if (transaction.note.isNotBlank()) " • " + transaction.note else ""}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontSize = 10.sp,
+                        letterSpacing = 1.sp
                     )
                 }
             }
 
+            val isIncome = transaction.type == TransactionType.INCOME
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}$currencySymbol${String.format(Locale.US, "%,.2f", transaction.amount)}",
+                    text = "${if (isIncome) "+" else "-"}$currencySymbol${String.format(Locale.US, "%,.2f", transaction.amount)}",
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (transaction.type == TransactionType.INCOME) Color.Green else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
+                    color = if (isIncome) IncomeGreen else Color.White,
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 IconButton(
@@ -289,7 +296,7 @@ fun TransactionRowItem(
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        tint = Color.White.copy(alpha = 0.35f),
                         modifier = Modifier.size(18.dp)
                     )
                 }

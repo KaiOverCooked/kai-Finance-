@@ -9,11 +9,8 @@ import com.example.data.repository.FinanceRepository
 import com.example.ui.theme.AppThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -47,23 +44,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    suspend fun exportDataJson(): String {
-        val transactions = repository.allTransactions.first()
-        val jsonArray = JSONArray()
-        transactions.forEach { tx ->
-            val obj = JSONObject()
-            obj.put("title", tx.title)
-            obj.put("amount", tx.amount)
-            obj.put("type", tx.type.name)
-            obj.put("category", tx.category.name)
-            obj.put("timestamp", tx.timestamp)
-            obj.put("note", tx.note)
-            jsonArray.put(obj)
-        }
-        val exportObj = JSONObject()
-        exportObj.put("app", "Kai Finance")
-        exportObj.put("version", "1.0")
-        exportObj.put("transactions", jsonArray)
-        return exportObj.toString(2)
+    suspend fun exportCsv(): String {
+        return repository.exportTransactionsCsv()
+    }
+
+    suspend fun importCsv(csvContent: String): Int {
+        return repository.importTransactionsCsv(csvContent)
+    }
+
+    suspend fun exportFullBackup(): String {
+        return repository.exportFullBackupJson()
+    }
+
+    suspend fun restoreFullBackup(jsonString: String): Boolean {
+        return repository.restoreFullBackupJson(jsonString)
     }
 }

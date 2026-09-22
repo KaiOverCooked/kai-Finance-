@@ -3,27 +3,30 @@ package com.example.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,9 +42,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 sealed class NavItem(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : NavItem("dashboard", "Home", Icons.Default.Home)
+    object Accounts : NavItem("accounts", "Wallets", Icons.Default.AccountBalance)
+    object Debts : NavItem("debts", "Hutang", Icons.Default.Handshake)
+    object Recurring : NavItem("recurring", "Rutin", Icons.Default.Repeat)
+    object Investments : NavItem("investments", "Invest", Icons.Default.ShowChart)
     object Transactions : NavItem("transactions", "Activity", Icons.Default.Receipt)
     object Analytics : NavItem("analytics", "Analytics", Icons.Default.PieChart)
     object Budget : NavItem("budget", "Budget", Icons.Default.AccountBalanceWallet)
@@ -52,10 +60,9 @@ sealed class NavItem(val route: String, val title: String, val icon: ImageVector
 
 val mainNavItems = listOf(
     NavItem.Dashboard,
-    NavItem.Transactions,
-    NavItem.Analytics,
-    NavItem.Budget,
-    NavItem.Goals,
+    NavItem.Accounts,
+    NavItem.Debts,
+    NavItem.Investments,
     NavItem.AiAdvisor,
     NavItem.Settings
 )
@@ -69,7 +76,7 @@ fun KaiBottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding(),
-        color = Color.Black.copy(alpha = 0.92f),
+        color = Color.Black.copy(alpha = 0.96f),
         border = BorderStroke(
             width = 1.dp,
             color = Color.White.copy(alpha = 0.10f)
@@ -78,14 +85,14 @@ fun KaiBottomBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
             mainNavItems.forEach { item ->
                 val isSelected = currentRoute == item.route
                 val iconColor by animateColorAsState(
-                    targetValue = if (isSelected) Color.Black else Color.White.copy(alpha = 0.4f),
+                    targetValue = if (isSelected) Color.Black else Color.White.copy(alpha = 0.45f),
                     label = "iconColor"
                 )
                 val bgColor by animateColorAsState(
@@ -97,25 +104,46 @@ fun KaiBottomBar(
                     label = "iconScale"
                 )
 
-                Box(
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .scale(scale)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(bgColor)
+                        .clip(CircleShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = { onNavigate(item.route) }
-                        )
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .testTag("nav_${item.route}"),
-                    contentAlignment = Alignment.Center
+                            indication = null
+                        ) { onNavigate(item.route) }
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .testTag("nav_item_${item.route}")
                 ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.title,
-                        tint = iconColor,
-                        modifier = Modifier.size(22.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .scale(scale)
+                            .clip(CircleShape)
+                            .padding(2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = bgColor,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.title,
+                                    tint = iconColor,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.4f)
                     )
                 }
             }

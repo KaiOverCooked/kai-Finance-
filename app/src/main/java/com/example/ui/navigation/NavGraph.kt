@@ -17,20 +17,28 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ui.components.KaiBottomBar
 import com.example.ui.components.NavItem
+import com.example.ui.screens.AccountsScreen
 import com.example.ui.screens.AiAdvisorScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.BudgetScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.DebtsScreen
 import com.example.ui.screens.GoalsScreen
+import com.example.ui.screens.InvestmentsScreen
 import com.example.ui.screens.PinLockScreen
+import com.example.ui.screens.RecurringScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.TransactionsScreen
+import com.example.ui.viewmodel.AccountsViewModel
 import com.example.ui.viewmodel.AiAdvisorViewModel
 import com.example.ui.viewmodel.AnalyticsViewModel
 import com.example.ui.viewmodel.BudgetViewModel
 import com.example.ui.viewmodel.DashboardViewModel
+import com.example.ui.viewmodel.DebtsViewModel
 import com.example.ui.viewmodel.GoalsViewModel
+import com.example.ui.viewmodel.InvestmentsViewModel
 import com.example.ui.viewmodel.MainViewModel
+import com.example.ui.viewmodel.RecurringViewModel
 import com.example.ui.viewmodel.SettingsViewModel
 import com.example.ui.viewmodel.TransactionsViewModel
 
@@ -85,7 +93,83 @@ fun KaiNavGraph(
                             currencySymbol = currencySymbol,
                             onNavigateToAddTransaction = { navController.navigate(NavItem.Transactions.route) },
                             onNavigateToAiAdvisor = { navController.navigate(NavItem.AiAdvisor.route) },
-                            onNavigateToTransactions = { navController.navigate(NavItem.Transactions.route) }
+                            onNavigateToTransactions = { navController.navigate(NavItem.Transactions.route) },
+                            onNavigateToAccounts = { navController.navigate(NavItem.Accounts.route) },
+                            onNavigateToDebts = { navController.navigate(NavItem.Debts.route) },
+                            onNavigateToRecurring = { navController.navigate(NavItem.Recurring.route) },
+                            onNavigateToInvestments = { navController.navigate(NavItem.Investments.route) },
+                            onNavigateToBudget = { navController.navigate(NavItem.Budget.route) },
+                            onNavigateToGoals = { navController.navigate(NavItem.Goals.route) }
+                        )
+                    }
+
+                    composable(NavItem.Accounts.route) {
+                        val accVm: AccountsViewModel = viewModel()
+                        val accounts by accVm.accounts.collectAsState()
+
+                        AccountsScreen(
+                            accounts = accounts,
+                            currencySymbol = currencySymbol,
+                            onCreateAccount = { name, type, bal, num, inst ->
+                                accVm.createAccount(name, type, bal, num, inst)
+                            },
+                            onTransfer = { from, to, amt, note ->
+                                accVm.transferBetweenAccounts(from, to, amt, note) {}
+                            },
+                            onDeleteAccount = { id -> accVm.deleteAccount(id) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(NavItem.Debts.route) {
+                        val debtsVm: DebtsViewModel = viewModel()
+                        val debts by debtsVm.debts.collectAsState()
+
+                        DebtsScreen(
+                            debts = debts,
+                            currencySymbol = currencySymbol,
+                            getPayments = { id -> debtsVm.getPayments(id) },
+                            onCreateDebt = { person, amt, type, due, notes ->
+                                debtsVm.createDebt(person, amt, type, due, notes)
+                            },
+                            onRecordPayment = { id, amt, note ->
+                                debtsVm.recordPayment(id, amt, note)
+                            },
+                            onDeleteDebt = { id -> debtsVm.deleteDebt(id) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(NavItem.Recurring.route) {
+                        val recVm: RecurringViewModel = viewModel()
+                        val recList by recVm.recurringList.collectAsState()
+
+                        RecurringScreen(
+                            recurringList = recList,
+                            currencySymbol = currencySymbol,
+                            onCreateRecurring = { title, amt, type, cat, recCat, freq, due, auto, note ->
+                                recVm.createRecurring(title, amt, type, cat, recCat, freq, due, auto, note)
+                            },
+                            onExecuteNow = { id -> recVm.executeNow(id) {} },
+                            onDeleteRecurring = { id -> recVm.deleteRecurring(id) },
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+
+                    composable(NavItem.Investments.route) {
+                        val invVm: InvestmentsViewModel = viewModel()
+                        val invList by invVm.investments.collectAsState()
+
+                        InvestmentsScreen(
+                            investments = invList,
+                            currencySymbol = currencySymbol,
+                            onCreateInvestment = { name, sym, qty, buy, curr, type, notes ->
+                                invVm.createInvestment(name, sym, qty, buy, curr, type, notes)
+                            },
+                            onUpdatePrice = { id, price -> invVm.updatePrice(id, price) },
+                            onAddDividend = { id, div -> invVm.addDividend(id, div) },
+                            onDeleteInvestment = { id -> invVm.deleteInvestment(id) },
+                            onBack = { navController.popBackStack() }
                         )
                     }
 
@@ -156,6 +240,7 @@ fun KaiNavGraph(
                         AiAdvisorScreen(
                             state = state,
                             onRunAudit = { aiVm.runHighReasoningAudit() },
+                            onAskQuestion = { q -> aiVm.askQuestion(q) },
                             onScanReceipt = { bitmap -> aiVm.scanReceiptImage(bitmap) },
                             onConfirmScannedReceipt = { result -> aiVm.saveScannedReceiptAsTransaction(result) },
                             onDismissReceipt = { aiVm.clearScannedResult() }
@@ -175,7 +260,10 @@ fun KaiNavGraph(
                             onSetPin = { pin, enabled -> settingsVm.setPin(pin, enabled) },
                             currencySymbol = curr,
                             onCurrencyChange = { settingsVm.setCurrency(it) },
-                            onExportDataJson = { settingsVm.exportDataJson() }
+                            onExportCsv = { settingsVm.exportCsv() },
+                            onImportCsv = { csv -> settingsVm.importCsv(csv) },
+                            onExportFullBackup = { settingsVm.exportFullBackup() },
+                            onRestoreFullBackup = { json -> settingsVm.restoreFullBackup(json) }
                         )
                     }
                 }

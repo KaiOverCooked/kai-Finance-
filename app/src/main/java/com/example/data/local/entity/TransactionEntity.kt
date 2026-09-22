@@ -21,5 +21,8 @@ data class TransactionEntity(
     val timestamp: Long = System.currentTimeMillis(),
     val note: String = "",
     val imageUri: String? = null,
-    val isRecurring: Boolean = false
+    val isRecurring: Boolean = false,
+    val accountId: Long? = null,
+    val transferToAccountId: Long? = null,
+    val isTransfer: Boolean = false
 )

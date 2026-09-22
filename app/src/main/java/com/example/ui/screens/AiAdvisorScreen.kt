@@ -5,8 +5,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +19,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
@@ -31,15 +33,22 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -55,12 +64,13 @@ import java.util.Locale
 fun AiAdvisorScreen(
     state: AiAdvisorUiState,
     onRunAudit: () -> Unit,
+    onAskQuestion: (String) -> Unit,
     onScanReceipt: (Bitmap) -> Unit,
     onConfirmScannedReceipt: (ParsedReceiptResult) -> Unit,
     onDismissReceipt: () -> Unit
 ) {
-    val scrollState = rememberScrollState()
     val context = LocalContext.current
+    var inputQuery by remember { mutableStateOf("") }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -78,235 +88,289 @@ fun AiAdvisorScreen(
         }
     }
 
+    val quickQuestions = listOf(
+        "Analisis pengeluaran terbesar saya",
+        "Bagaimana strategi lunasi hutang?",
+        "Apakah portofolio investasi seimbang?",
+        "Tips hemat 20% bulan ini"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
             .padding(horizontal = 16.dp, vertical = 16.dp)
             .testTag("ai_advisor_screen")
     ) {
         // Header
-        Text(
-            text = "INTELLIGENCE",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = "Kai AI Strategist",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Hero Intelligence Card
-        GlassCard(
-            modifier = Modifier.padding(bottom = 16.dp),
-            testTag = "ai_hero_card"
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Psychology,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "GEMINI HIGH THINKING ENGINE",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 1.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
                 Text(
-                    text = "Automated Strategic Wealth Audit",
+                    text = "KAI AI STRATEGIST",
                     style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    letterSpacing = 1.sp
                 )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
                 Text(
-                    text = "Leverage Gemini 3.1 Pro high reasoning to evaluate cash flow efficiency, spot spend leakages, and craft tailored investment steps.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Analisis Pengeluaran, Audit Data & Tanya Jawab Finansial",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.45f)
                 )
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = onRunAudit,
-                        enabled = !state.isLoading,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("run_audit_btn"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        if (state.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Reasoning...")
-                        } else {
-                            Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Run Audit")
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = { imagePickerLauncher.launch("image/*") },
-                        enabled = !state.isLoading,
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("scan_receipt_btn"),
-                        shape = RoundedCornerShape(14.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Scan Receipt")
-                    }
+            Surface(
+                shape = CircleShape,
+                color = Color(0xFF1A1A1A),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                modifier = Modifier.size(42.dp)
+            ) {
+                IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                    Icon(imageVector = Icons.Default.CameraAlt, contentDescription = "Scan Receipt", tint = Color.White)
                 }
             }
         }
 
-        // Scanned Receipt Modal / Card
-        state.scannedReceiptResult?.let { scanned ->
-            GlassCard(
-                modifier = Modifier.padding(bottom = 16.dp),
-                testTag = "scanned_receipt_card"
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Top Action Strip: Run Audit & Scan Receipt
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = onRunAudit,
+                enabled = !state.isLoading,
+                modifier = Modifier.weight(1f).height(44.dp).testTag("run_audit_btn"),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                shape = RoundedCornerShape(12.dp)
             ) {
+                if (state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Menganalisis...", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                } else {
+                    Icon(imageVector = Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Audit Finansial", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Button(
+                onClick = { imagePickerLauncher.launch("image/*") },
+                enabled = !state.isLoading,
+                modifier = Modifier.weight(0.9f).height(44.dp).testTag("scan_receipt_btn"),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A1A1A), contentColor = Color.White),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(imageVector = Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Scan Struk", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
+        // Scanned Receipt confirmation card
+        state.scannedReceiptResult?.let { scanned ->
+            Spacer(modifier = Modifier.height(12.dp))
+            GlassCard(modifier = Modifier.fillMaxWidth(), testTag = "scanned_receipt_card") {
                 Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "AUTO-EXTRACTED RECEIPT",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = Color.Green
-                        )
+                        Text("STRUK TERDETEKSI", style = MaterialTheme.typography.labelSmall, color = Color(0xFF81C784), fontWeight = FontWeight.Bold)
+                        Text("$${String.format(Locale.US, "%,.2f", scanned.amount)}", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
                     }
-
+                    Text(scanned.title, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text("Kategori: ${scanned.category.name}", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = scanned.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Amount: $${String.format(Locale.US, "%,.2f", scanned.amount)} • ${scanned.category.name}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = { onConfirmScannedReceipt(scanned) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("confirm_receipt_tx_btn"),
-                            shape = RoundedCornerShape(12.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
                         ) {
-                            Text("Save Entry")
+                            Text("Simpan Transaksi", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
-
                         OutlinedButton(
                             onClick = onDismissReceipt,
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("dismiss_receipt_btn"),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
                         ) {
-                            Text("Dismiss")
+                            Text("Abaikan", fontSize = 11.sp, color = Color.White.copy(alpha = 0.6f))
                         }
                     }
                 }
             }
         }
 
-        // Error message if any
-        state.errorMessage?.let { err ->
-            GlassCard(
-                modifier = Modifier.padding(bottom = 16.dp),
-                testTag = "ai_error_card"
-            ) {
-                Text(
-                    text = err,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Red
-                )
-            }
-        }
-
-        // Audit Output Report Display Card
-        GlassCard(
-            modifier = Modifier.padding(bottom = 16.dp),
-            testTag = "ai_audit_report_card"
-        ) {
-            Column {
-                Text(
-                    text = "AI FINANCIAL STRATEGY REPORT",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 1.sp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (state.analysisReport != null) {
+        // Audit Report Box if generated
+        state.analysisReport?.let { report ->
+            Spacer(modifier = Modifier.height(12.dp))
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(imageVector = Icons.Default.Psychology, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("HASIL AUDIT STRATEGIS", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = state.analysisReport,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 24.sp
-                    )
-                } else {
-                    Text(
-                        text = "Tap 'Run Audit' above to generate a high-reasoning financial strategy powered by Gemini AI.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = report,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.85f),
+                        lineHeight = 18.sp
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Quick suggestions chip row
+        Text("Tanya Cepat ke Kai AI:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f))
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            quickQuestions.take(2).forEach { q ->
+                Surface(
+                    onClick = { onAskQuestion(q) },
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF191919),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = q,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Conversational Chat Thread
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(state.chatMessages) { msg ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (msg.isUser) Arrangement.End else Arrangement.Start
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(
+                                RoundedCornerShape(
+                                    topStart = 16.dp,
+                                    topEnd = 16.dp,
+                                    bottomStart = if (msg.isUser) 16.dp else 4.dp,
+                                    bottomEnd = if (msg.isUser) 4.dp else 16.dp
+                                )
+                            )
+                            .background(if (msg.isUser) Color.White else Color(0xFF1C1C1C))
+                            .border(
+                                1.dp,
+                                if (msg.isUser) Color.Transparent else Color.White.copy(alpha = 0.1f),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    ) {
+                        Text(
+                            text = msg.text,
+                            color = if (msg.isUser) Color.Black else Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            lineHeight = 20.sp
+                        )
+                    }
+                }
+            }
+
+            if (state.isChatLoading) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF1C1C1C))
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Kai sedang membaca data...", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Chat Input Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = inputQuery,
+                onValueChange = { inputQuery = it },
+                placeholder = { Text("Tanyakan kondisi keuangan Anda...", color = Color.White.copy(alpha = 0.35f), fontSize = 13.sp) },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+                    .testTag("ai_chat_input"),
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = Color(0xFF141414),
+                    unfocusedContainerColor = Color(0xFF141414),
+                    focusedBorderColor = Color.White,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                )
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                shape = CircleShape,
+                color = Color.White,
+                modifier = Modifier.size(50.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        if (inputQuery.isNotBlank()) {
+                            val q = inputQuery
+                            inputQuery = ""
+                            onAskQuestion(q)
+                        }
+                    },
+                    modifier = Modifier.testTag("send_ai_query_btn")
+                ) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Kirim", tint = Color.Black, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
     }
 }
