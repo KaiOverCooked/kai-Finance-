@@ -41,4 +41,10 @@ interface DebtDao {
 
     @Query("SELECT * FROM debt_payments ORDER BY timestamp DESC")
     fun getAllDebtPayments(): Flow<List<DebtPaymentEntity>>
+
+    @Query("DELETE FROM debts")
+    suspend fun deleteAllDebts()
+
+    @Query("DELETE FROM debt_payments")
+    suspend fun deleteAllDebtPayments()
 }

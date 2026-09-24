@@ -34,4 +34,7 @@ interface RecurringDao {
 
     @Query("UPDATE recurring_transactions SET lastExecutedMillis = :timestamp, nextDueDateMillis = :nextDue WHERE id = :id")
     suspend fun markExecuted(id: Long, timestamp: Long, nextDue: Long)
+
+    @Query("DELETE FROM recurring_transactions")
+    suspend fun deleteAllRecurring()
 }

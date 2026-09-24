@@ -35,7 +35,7 @@ import com.example.data.local.entity.TransactionEntity
         RecurringEntity::class,
         InvestmentEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -53,13 +53,33 @@ abstract class KaiDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: KaiDatabase? = null
 
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Table creations for accounts, debts, debt_payments, recurring_transactions, investments if upgrading from v1
+                db.execSQL("CREATE TABLE IF NOT EXISTS accounts (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `balance` REAL NOT NULL, `accountNumber` TEXT NOT NULL, `institutionName` TEXT NOT NULL, `isDefault` INTEGER NOT NULL, `colorHex` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS debts (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `personName` TEXT NOT NULL, `amount` REAL NOT NULL, `paidAmount` REAL NOT NULL, `type` TEXT NOT NULL, `dueDateMillis` INTEGER NOT NULL, `isSettled` INTEGER NOT NULL, `notes` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS debt_payments (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `debtId` INTEGER NOT NULL, `amount` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `note` TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS recurring_transactions (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `amount` REAL NOT NULL, `type` TEXT NOT NULL, `category` TEXT NOT NULL, `recurringCategory` TEXT NOT NULL, `frequency` TEXT NOT NULL, `nextDueDateMillis` INTEGER NOT NULL, `autoExecute` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `lastExecutedMillis` INTEGER, `note` TEXT NOT NULL, `accountId` INTEGER)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS investments (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `assetName` TEXT NOT NULL, `symbol` TEXT NOT NULL, `quantity` REAL NOT NULL, `buyPrice` REAL NOT NULL, `currentPrice` REAL NOT NULL, `dividendReceived` REAL NOT NULL, `type` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, `notes` TEXT NOT NULL)")
+            }
+        }
+
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE recurring_transactions ADD COLUMN accountId INTEGER DEFAULT NULL")
+            }
+        }
+
         fun getDatabase(context: Context): KaiDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     KaiDatabase::class.java,
                     "kai_finance_db"
-                ).fallbackToDestructiveMigration().build()
+                )
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

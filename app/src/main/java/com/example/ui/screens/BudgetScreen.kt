@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.data.local.entity.BudgetEntity
 import com.example.data.local.entity.TransactionCategory
 import com.example.ui.components.GlassCard
@@ -54,7 +56,7 @@ import java.util.Locale
 fun BudgetScreen(
     budgets: List<BudgetEntity>,
     currencySymbol: String,
-    onCreateBudget: (TransactionCategory, Double) -> Unit,
+    onCreateBudget: (TransactionCategory, Double, String) -> Unit,
     onDeleteBudget: (Long) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
@@ -74,7 +76,7 @@ fun BudgetScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "Monthly Budgets",
+                text = "Budgets & Limits",
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
@@ -184,8 +186,8 @@ fun BudgetScreen(
         if (showAddDialog) {
             AddBudgetSheet(
                 onDismiss = { showAddDialog = false },
-                onSave = { category, limit ->
-                    onCreateBudget(category, limit)
+                onSave = { category, limit, period ->
+                    onCreateBudget(category, limit, period)
                     showAddDialog = false
                 }
             )
@@ -228,6 +230,18 @@ fun BudgetItemRow(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = budget.period,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -265,11 +279,12 @@ fun BudgetItemRow(
 @Composable
 fun AddBudgetSheet(
     onDismiss: () -> Unit,
-    onSave: (TransactionCategory, Double) -> Unit
+    onSave: (TransactionCategory, Double, String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState()
     var category by remember { mutableStateOf(TransactionCategory.FOOD) }
     var limitStr by remember { mutableStateOf("") }
+    var period by remember { mutableStateOf("Monthly") }
     var showCategoryDropdown by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
@@ -291,6 +306,30 @@ fun AddBudgetSheet(
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // Period Selector (Weekly, Monthly, Yearly)
+            Text("Periode Anggaran:", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf("Weekly", "Monthly", "Yearly").forEach { p ->
+                    Button(
+                        onClick = { period = p },
+                        modifier = Modifier.weight(1f),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = if (period == p) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            contentColor = if (period == p) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(p, fontSize = 12.sp)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             Box {
                 OutlinedTextField(
@@ -328,7 +367,7 @@ fun AddBudgetSheet(
             OutlinedTextField(
                 value = limitStr,
                 onValueChange = { limitStr = it },
-                label = { Text("Monthly Limit ($)") },
+                label = { Text("$period Limit ($)") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("input_budget_limit"),
@@ -341,7 +380,7 @@ fun AddBudgetSheet(
                 onClick = {
                     val limit = limitStr.toDoubleOrNull() ?: 0.0
                     if (limit > 0.0) {
-                        onSave(category, limit)
+                        onSave(category, limit, period)
                     }
                 },
                 modifier = Modifier

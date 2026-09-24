@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class DashboardUiState(
     val totalBalance: Double = 0.0,
@@ -38,6 +39,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val repository = FinanceRepository(KaiDatabase.getDatabase(application))
 
+    init {
+        viewModelScope.launch {
+            // Check and automate due recurring transactions on launch
+            repository.processDueRecurringTransactions()
+        }
+    }
+
     val uiState: StateFlow<DashboardUiState> = combine(
         repository.allTransactions,
         repository.allAccounts,
@@ -45,23 +53,29 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         repository.allInvestments,
         repository.allRecurring
     ) { txList, accountsList, debtsList, invList, recList ->
-        val income = txList.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val expenses = txList.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        // Transfers are not counted as real income or expense
+        val nonTransferTxList = txList.filter { !it.isTransfer }
+        val income = nonTransferTxList.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+        val expenses = nonTransferTxList.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+
         val accountsTotal = accountsList.sumOf { it.balance }
         val netBalance = if (accountsList.isNotEmpty()) accountsTotal else (income - expenses)
 
-        val recent = txList.take(5)
+        val recent = txList.take(6)
 
-        val points = if (txList.isNotEmpty()) {
+        // 100% real cash flow calculation without dummy values
+        val points = if (nonTransferTxList.isNotEmpty()) {
             var running = 0.0
-            txList.reversed().map { tx ->
+            nonTransferTxList.sortedBy { it.timestamp }.takeLast(10).map { tx ->
                 if (tx.type == TransactionType.INCOME) running += tx.amount
                 else running -= tx.amount
                 running
             }
-        } else listOf(0.0, 500.0, 1200.0, 2400.0, 3100.0)
+        } else {
+            emptyList()
+        }
 
-        val categoryMap = txList.filter { it.type == TransactionType.EXPENSE }
+        val categoryMap = nonTransferTxList.filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category }
             .mapValues { entry -> entry.value.sumOf { it.amount } }
             .toList()

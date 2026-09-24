@@ -446,7 +446,7 @@ fun SettingsScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "Complete Wealth Management • Room DB v2 • Kai AI Strategist",
+                        text = "Complete Wealth Management • Room DB v3 • Kai AI Strategist",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.45f)
                     )

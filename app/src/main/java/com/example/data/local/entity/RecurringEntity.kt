@@ -31,5 +31,6 @@ data class RecurringEntity(
     val autoExecute: Boolean = false,
     val isActive: Boolean = true,
     val lastExecutedMillis: Long? = null,
-    val note: String = ""
+    val note: String = "",
+    val accountId: Long? = null
 )

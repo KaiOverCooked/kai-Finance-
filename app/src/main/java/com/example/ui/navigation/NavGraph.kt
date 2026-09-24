@@ -143,15 +143,18 @@ fun KaiNavGraph(
                     composable(NavItem.Recurring.route) {
                         val recVm: RecurringViewModel = viewModel()
                         val recList by recVm.recurringList.collectAsState()
+                        val accList by recVm.accounts.collectAsState()
 
                         RecurringScreen(
                             recurringList = recList,
+                            accounts = accList,
                             currencySymbol = currencySymbol,
-                            onCreateRecurring = { title, amt, type, cat, recCat, freq, due, auto, note ->
-                                recVm.createRecurring(title, amt, type, cat, recCat, freq, due, auto, note)
+                            onCreateRecurring = { title, amt, type, cat, recCat, freq, due, auto, note, accId ->
+                                recVm.createRecurring(title, amt, type, cat, recCat, freq, due, auto, note, accId)
                             },
                             onExecuteNow = { id -> recVm.executeNow(id) {} },
                             onDeleteRecurring = { id -> recVm.deleteRecurring(id) },
+                            onTriggerPendingCheck = { recVm.checkAndProcessPendingRecurring() },
                             onBack = { navController.popBackStack() }
                         )
                     }
@@ -213,7 +216,7 @@ fun KaiNavGraph(
                         BudgetScreen(
                             budgets = budgets,
                             currencySymbol = currencySymbol,
-                            onCreateBudget = { category, limit -> budgetVm.createOrUpdateBudget(category, limit) },
+                            onCreateBudget = { category, limit, period -> budgetVm.createOrUpdateBudget(category, limit, period) },
                             onDeleteBudget = { id -> budgetVm.deleteBudget(id) }
                         )
                     }

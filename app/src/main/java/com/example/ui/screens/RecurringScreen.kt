@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.Delete
@@ -33,6 +36,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -54,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.local.entity.AccountEntity
 import com.example.data.local.entity.RecurringCategoryType
 import com.example.data.local.entity.RecurringEntity
 import com.example.data.local.entity.RecurringFrequency
@@ -63,16 +68,19 @@ import com.example.ui.components.GlassCard
 import com.example.ui.theme.ExpenseRed
 import com.example.ui.theme.IncomeGreen
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun RecurringScreen(
     recurringList: List<RecurringEntity>,
+    accounts: List<AccountEntity> = emptyList(),
     currencySymbol: String,
-    onCreateRecurring: (String, Double, TransactionType, TransactionCategory, RecurringCategoryType, RecurringFrequency, Long, Boolean, String) -> Unit,
+    onCreateRecurring: (String, Double, TransactionType, TransactionCategory, RecurringCategoryType, RecurringFrequency, Long, Boolean, String, Long?) -> Unit,
     onExecuteNow: (Long) -> Unit,
     onDeleteRecurring: (Long) -> Unit,
+    onTriggerPendingCheck: () -> Unit = {},
     onBack: (() -> Unit)? = null
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
@@ -118,34 +126,45 @@ fun RecurringScreen(
                 }
             }
 
-            Surface(
-                shape = CircleShape,
-                color = Color.White,
-                modifier = Modifier.size(42.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 IconButton(
-                    onClick = { showAddDialog = true },
-                    modifier = Modifier.testTag("add_recurring_fab")
+                    onClick = {
+                        onTriggerPendingCheck()
+                        executeSuccessMessage = "Jadwal rutin yang jatuh tempo telah diperiksa & diproses otomatis!"
+                    },
+                    modifier = Modifier.size(36.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Recurring", tint = Color.Black)
+                    Icon(imageVector = Icons.Default.Autorenew, contentDescription = "Sync Recurring", tint = Color.White.copy(alpha = 0.7f))
+                }
+
+                Button(
+                    onClick = { showAddDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Jadwal", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Hero Metric Row
+        // Commitment Overview Cards
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            GlassCard(modifier = Modifier.weight(1f)) {
-                Column {
-                    Text("PEMASUKAN RUTIN", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp)
-                    Text("(Gaji / Bulanan)", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.3f), fontSize = 9.sp)
+            GlassCard(
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("Pemasukan Rutin", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "$currencySymbol${String.format(Locale.US, "%,.2f", totalRecurringIncome)}",
+                        text = "+$currencySymbol ${String.format(Locale.US, "%,.0f", totalRecurringIncome)}",
                         style = MaterialTheme.typography.titleMedium,
                         color = IncomeGreen,
                         fontWeight = FontWeight.Bold
@@ -153,13 +172,14 @@ fun RecurringScreen(
                 }
             }
 
-            GlassCard(modifier = Modifier.weight(1f)) {
-                Column {
-                    Text("TAGIHAN / BULAN", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp)
-                    Text("(Subscriptions & Bills)", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.3f), fontSize = 9.sp)
+            GlassCard(
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text("Komitmen Rutin", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "$currencySymbol${String.format(Locale.US, "%,.2f", totalMonthlyCommitment)}",
+                        text = "-$currencySymbol ${String.format(Locale.US, "%,.0f", totalMonthlyCommitment)}",
                         style = MaterialTheme.typography.titleMedium,
                         color = ExpenseRed,
                         fontWeight = FontWeight.Bold
@@ -170,83 +190,141 @@ fun RecurringScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Recurring Items List
         if (recurringList.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Belum ada transaksi rutin atau langganan", color = Color.White.copy(alpha = 0.4f))
+                    Icon(
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.2f),
+                        modifier = Modifier.size(54.dp)
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = { showAddDialog = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
-                    ) {
-                        Text("Tambah Transaksi Rutin")
-                    }
+                    Text("Belum ada transaksi rutin terjadwal", color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
                 }
             }
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(recurringList, key = { it.id }) { item ->
-                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                    val connectedAccount = accounts.find { it.id == item.accountId }
+
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.Black)
-                                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
-                                    contentAlignment = Alignment.Center
+                            Row(
+                                modifier = Modifier.weight(1f),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    modifier = Modifier.size(42.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = when (item.recurringCategory) {
-                                            RecurringCategoryType.GAJI -> Icons.Default.Repeat
-                                            RecurringCategoryType.TAGIHAN -> Icons.Default.Schedule
-                                            RecurringCategoryType.SUBSCRIPTION -> Icons.Default.Autorenew
-                                            else -> Icons.Default.Repeat
-                                        },
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
+
                                 Spacer(modifier = Modifier.width(12.dp))
+
                                 Column {
                                     Text(
                                         text = item.title,
-                                        style = MaterialTheme.typography.titleMedium,
+                                        style = MaterialTheme.typography.titleSmall,
                                         color = Color.White,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.SemiBold
                                     )
-                                    Text(
-                                        text = "${item.recurringCategory.name} • ${item.frequency.name} • Jatuh tempo: ${dateFormat.format(Date(item.nextDueDateMillis))}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color.White.copy(alpha = 0.45f),
-                                        fontSize = 10.sp
-                                    )
-                                    if (item.autoExecute) {
-                                        Text(
-                                            text = "⚡ Otomatis Tercatat",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF81C784),
-                                            fontSize = 10.sp
-                                        )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color.White.copy(alpha = 0.15f)
+                                        ) {
+                                            Text(
+                                                text = item.recurringCategory.name,
+                                                fontSize = 9.sp,
+                                                color = Color.White,
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = Color.White.copy(alpha = 0.08f)
+                                        ) {
+                                            Text(
+                                                text = item.frequency.name,
+                                                fontSize = 9.sp,
+                                                color = Color.White.copy(alpha = 0.7f),
+                                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                            )
+                                        }
+
+                                        if (item.autoExecute) {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = Color.White
+                                            ) {
+                                                Text(
+                                                    text = "AUTO",
+                                                    fontSize = 8.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.Black,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
                                     }
+
+                                    // Connected Account display
+                                    if (connectedAccount != null) {
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(imageVector = Icons.Default.AccountBalanceWallet, contentDescription = null, tint = Color.White.copy(alpha = 0.5f), modifier = Modifier.size(10.dp))
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text(
+                                                text = "${connectedAccount.name} (${connectedAccount.type.name})",
+                                                fontSize = 10.sp,
+                                                color = Color.White.copy(alpha = 0.5f)
+                                            )
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Jatuh Tempo: ${dateFormat.format(Date(item.nextDueDateMillis))}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White.copy(alpha = 0.45f)
+                                    )
                                 }
                             }
 
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "${if (item.type == TransactionType.INCOME) "+" else "-"}$currencySymbol${String.format(Locale.US, "%,.2f", item.amount)}",
+                                    text = "${if (item.type == TransactionType.INCOME) "+" else "-"}$currencySymbol ${String.format(Locale.US, "%,.0f", item.amount)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     color = if (item.type == TransactionType.INCOME) IncomeGreen else Color.White,
                                     fontWeight = FontWeight.Bold
@@ -258,7 +336,7 @@ fun RecurringScreen(
                                     Button(
                                         onClick = {
                                             onExecuteNow(item.id)
-                                            executeSuccessMessage = "Telah dicatat sebagai transaksi!"
+                                            executeSuccessMessage = "Telah dieksekusi dan dicatat ke transaksi serta saldo rekening!"
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
                                         shape = RoundedCornerShape(8.dp),
@@ -285,7 +363,7 @@ fun RecurringScreen(
         }
     }
 
-    // Add Recurring Dialog
+    // Add Recurring Dialog with Account Connection & Frequency Selection
     if (showAddDialog) {
         var title by remember { mutableStateOf("") }
         var amountStr by remember { mutableStateOf("") }
@@ -293,6 +371,7 @@ fun RecurringScreen(
         var recCategory by remember { mutableStateOf(RecurringCategoryType.SUBSCRIPTION) }
         var frequency by remember { mutableStateOf(RecurringFrequency.MONTHLY) }
         var autoExecute by remember { mutableStateOf(true) }
+        var selectedAccountId by remember { mutableStateOf<Long?>(accounts.firstOrNull()?.id) }
 
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
@@ -351,7 +430,52 @@ fun RecurringScreen(
                         )
                     )
 
-                    Text("Jenis Rutin:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
+                    // Frequency selector (Daily, Weekly, Monthly, Yearly)
+                    Text("Frekuensi Waktu:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        RecurringFrequency.values().forEach { freq ->
+                            Button(
+                                onClick = { frequency = freq },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (frequency == freq) Color.White else Color(0xFF1F1F1F),
+                                    contentColor = if (frequency == freq) Color.Black else Color.White
+                                ),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp, vertical = 4.dp)
+                            ) {
+                                Text(freq.name.take(4), fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    // Hubungkan Recurring -> Account
+                    if (accounts.isNotEmpty()) {
+                        Text("Hubungkan ke Rekening / Akun:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            items(accounts) { acc ->
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (selectedAccountId == acc.id) Color.White else Color(0xFF1F1F1F),
+                                    border = BorderStroke(1.dp, if (selectedAccountId == acc.id) Color.White else Color.White.copy(alpha = 0.15f)),
+                                    modifier = Modifier.clickable { selectedAccountId = acc.id }
+                                ) {
+                                    Text(
+                                        text = acc.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = if (selectedAccountId == acc.id) Color.Black else Color.White,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Text("Kategori Rutin:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.5f))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -377,7 +501,7 @@ fun RecurringScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Transaksi Otomatis", color = Color.White, fontSize = 13.sp)
+                        Text("Otomatis Buat Transaksi", color = Color.White, fontSize = 13.sp)
                         Switch(
                             checked = autoExecute,
                             onCheckedChange = { autoExecute = it },
@@ -391,7 +515,15 @@ fun RecurringScreen(
                     onClick = {
                         val amt = amountStr.toDoubleOrNull() ?: 0.0
                         if (title.isNotBlank() && amt > 0) {
-                            val nextDue = System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000L
+                            // Calculate accurate next due date based on chosen frequency
+                            val cal = Calendar.getInstance()
+                            when (frequency) {
+                                RecurringFrequency.DAILY -> cal.add(Calendar.DAY_OF_YEAR, 1)
+                                RecurringFrequency.WEEKLY -> cal.add(Calendar.DAY_OF_YEAR, 7)
+                                RecurringFrequency.MONTHLY -> cal.add(Calendar.MONTH, 1)
+                                RecurringFrequency.YEARLY -> cal.add(Calendar.YEAR, 1)
+                            }
+
                             onCreateRecurring(
                                 title,
                                 amt,
@@ -399,9 +531,10 @@ fun RecurringScreen(
                                 if (type == TransactionType.INCOME) TransactionCategory.SALARY else TransactionCategory.UTILITIES,
                                 recCategory,
                                 frequency,
-                                nextDue,
+                                cal.timeInMillis,
                                 autoExecute,
-                                ""
+                                "",
+                                selectedAccountId
                             )
                             showAddDialog = false
                         }
@@ -423,7 +556,7 @@ fun RecurringScreen(
     if (executeSuccessMessage != null) {
         AlertDialog(
             onDismissRequest = { executeSuccessMessage = null },
-            title = { Text("Berhasil Dieksekusi", color = Color.White, fontWeight = FontWeight.Bold) },
+            title = { Text("Status Eksekusi", color = Color.White, fontWeight = FontWeight.Bold) },
             text = { Text(executeSuccessMessage!!, color = Color.White.copy(alpha = 0.8f)) },
             confirmButton = {
                 Button(

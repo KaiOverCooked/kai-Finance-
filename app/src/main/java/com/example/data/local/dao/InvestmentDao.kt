@@ -34,4 +34,7 @@ interface InvestmentDao {
 
     @Query("UPDATE investments SET dividendReceived = dividendReceived + :dividend, updatedAtMillis = :now WHERE id = :id")
     suspend fun addDividend(id: Long, dividend: Double, now: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM investments")
+    suspend fun deleteAllInvestments()
 }
