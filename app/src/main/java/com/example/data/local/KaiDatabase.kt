@@ -61,12 +61,18 @@ abstract class KaiDatabase : RoomDatabase() {
                 db.execSQL("CREATE TABLE IF NOT EXISTS debt_payments (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `debtId` INTEGER NOT NULL, `amount` REAL NOT NULL, `timestamp` INTEGER NOT NULL, `note` TEXT NOT NULL)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS recurring_transactions (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `amount` REAL NOT NULL, `type` TEXT NOT NULL, `category` TEXT NOT NULL, `recurringCategory` TEXT NOT NULL, `frequency` TEXT NOT NULL, `nextDueDateMillis` INTEGER NOT NULL, `autoExecute` INTEGER NOT NULL, `isActive` INTEGER NOT NULL, `lastExecutedMillis` INTEGER, `note` TEXT NOT NULL, `accountId` INTEGER)")
                 db.execSQL("CREATE TABLE IF NOT EXISTS investments (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `assetName` TEXT NOT NULL, `symbol` TEXT NOT NULL, `quantity` REAL NOT NULL, `buyPrice` REAL NOT NULL, `currentPrice` REAL NOT NULL, `dividendReceived` REAL NOT NULL, `type` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, `notes` TEXT NOT NULL)")
+                try { db.execSQL("ALTER TABLE transactions ADD COLUMN accountId INTEGER DEFAULT NULL") } catch (e: Exception) {}
+                try { db.execSQL("ALTER TABLE transactions ADD COLUMN transferToAccountId INTEGER DEFAULT NULL") } catch (e: Exception) {}
+                try { db.execSQL("ALTER TABLE transactions ADD COLUMN isTransfer INTEGER NOT NULL DEFAULT 0") } catch (e: Exception) {}
+                try { db.execSQL("ALTER TABLE transactions ADD COLUMN isRecurring INTEGER NOT NULL DEFAULT 0") } catch (e: Exception) {}
             }
         }
 
         val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE recurring_transactions ADD COLUMN accountId INTEGER DEFAULT NULL")
+                try {
+                    db.execSQL("ALTER TABLE recurring_transactions ADD COLUMN accountId INTEGER DEFAULT NULL")
+                } catch (e: Exception) {}
             }
         }
 
@@ -78,7 +84,6 @@ abstract class KaiDatabase : RoomDatabase() {
                     "kai_finance_db"
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

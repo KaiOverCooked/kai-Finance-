@@ -549,6 +549,21 @@ class FinanceRepository(private val db: KaiDatabase) {
         }
         root.put("investments", invArray)
 
+        // Notifications
+        val notifications = db.notificationDao().getAllNotificationsList()
+        val notifArray = JSONArray()
+        notifications.forEach {
+            val obj = JSONObject()
+            obj.put("id", it.id)
+            obj.put("title", it.title)
+            obj.put("message", it.message)
+            obj.put("timestamp", it.timestamp)
+            obj.put("isRead", it.isRead)
+            obj.put("type", it.type.name)
+            notifArray.put(obj)
+        }
+        root.put("notifications", notifArray)
+
         return root.toString(2)
     }
 
@@ -565,6 +580,7 @@ class FinanceRepository(private val db: KaiDatabase) {
             db.budgetDao().deleteAllBudgets()
             db.goalDao().deleteAllGoals()
             db.investmentDao().deleteAllInvestments()
+            db.notificationDao().deleteAllNotifications()
 
             // 2. Restore Accounts
             if (root.has("accounts")) {
@@ -721,9 +737,27 @@ class FinanceRepository(private val db: KaiDatabase) {
                             buyPrice = obj.getDouble("buyPrice"),
                             currentPrice = obj.getDouble("currentPrice"),
                             dividendReceived = obj.optDouble("dividendReceived", 0.0),
-                            type = InvestmentType.valueOf(obj.optString("type", "STOCKS")),
+                            type = InvestmentType.valueOf(obj.optString("type", "STOCK")),
                             updatedAtMillis = obj.optLong("updatedAtMillis", System.currentTimeMillis()),
                             notes = obj.optString("notes", "")
+                        )
+                    )
+                }
+            }
+
+            // 10. Restore Notifications
+            if (root.has("notifications")) {
+                val notifArray = root.getJSONArray("notifications")
+                for (i in 0 until notifArray.length()) {
+                    val obj = notifArray.getJSONObject(i)
+                    db.notificationDao().insertNotification(
+                        NotificationEntity(
+                            id = obj.optLong("id", 0),
+                            title = obj.getString("title"),
+                            message = obj.getString("message"),
+                            timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                            isRead = obj.optBoolean("isRead", false),
+                            type = NotificationType.valueOf(obj.optString("type", "SYSTEM"))
                         )
                     )
                 }

@@ -39,7 +39,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
 
     val currencySymbol: StateFlow<String> = preferencesRepository.currencySymbolFlow
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "$")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Rp")
 
     private val _isUnlocked = MutableStateFlow(true)
     val isUnlocked: StateFlow<Boolean> = _isUnlocked.asStateFlow()

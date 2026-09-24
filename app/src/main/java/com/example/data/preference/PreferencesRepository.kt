@@ -45,7 +45,7 @@ class PreferencesRepository(private val context: Context) {
     }
 
     val currencySymbolFlow: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[Keys.CURRENCY_SYMBOL] ?: "$"
+        prefs[Keys.CURRENCY_SYMBOL] ?: "Rp"
     }
 
     suspend fun setThemeMode(mode: AppThemeMode) {
