@@ -25,6 +25,7 @@ import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DebtsScreen
 import com.example.ui.screens.GoalsScreen
 import com.example.ui.screens.InvestmentsScreen
+import com.example.ui.screens.OnboardingScreen
 import com.example.ui.screens.PinLockScreen
 import com.example.ui.screens.RecurringScreen
 import com.example.ui.screens.SettingsScreen
@@ -49,11 +50,21 @@ fun KaiNavGraph(
 ) {
     val isUnlocked by mainViewModel.isUnlocked.collectAsState()
     val isPinEnabled by mainViewModel.isPinEnabled.collectAsState()
+    val isBiometricEnabled by mainViewModel.isBiometricEnabled.collectAsState()
+    val isOnboardingCompleted by mainViewModel.isOnboardingCompleted.collectAsState()
     val currencySymbol by mainViewModel.currencySymbol.collectAsState()
 
-    if (isPinEnabled && !isUnlocked) {
+    if (!isOnboardingCompleted) {
+        OnboardingScreen(
+            onComplete = { accountName, accountType, initialBalance, budgetCategory, budgetLimit ->
+                mainViewModel.completeOnboarding(accountName, accountType, initialBalance, budgetCategory, budgetLimit)
+            }
+        )
+    } else if (isPinEnabled && !isUnlocked) {
         PinLockScreen(
-            onUnlock = { pin -> mainViewModel.unlockWithPin(pin) }
+            isBiometricEnabled = isBiometricEnabled,
+            onUnlock = { pin -> mainViewModel.unlockWithPin(pin) },
+            onBiometricUnlock = { mainViewModel.unlockWithBiometric() }
         )
     } else {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -254,19 +265,26 @@ fun KaiNavGraph(
                         val settingsVm: SettingsViewModel = viewModel()
                         val themeMode by settingsVm.themeMode.collectAsState()
                         val pinEnabled by settingsVm.isPinEnabled.collectAsState()
+                        val biometricEnabled by settingsVm.isBiometricEnabled.collectAsState()
                         val curr by settingsVm.currencySymbol.collectAsState()
+                        val accounts by settingsVm.accounts.collectAsState()
 
                         SettingsScreen(
                             currentThemeMode = themeMode,
                             onThemeChange = { settingsVm.setThemeMode(it) },
                             isPinEnabled = pinEnabled,
                             onSetPin = { pin, enabled -> settingsVm.setPin(pin, enabled) },
+                            isBiometricEnabled = biometricEnabled,
+                            onSetBiometricEnabled = { settingsVm.setBiometricEnabled(it) },
                             currencySymbol = curr,
                             onCurrencyChange = { settingsVm.setCurrency(it) },
+                            accounts = accounts,
                             onExportCsv = { settingsVm.exportCsv() },
-                            onImportCsv = { csv -> settingsVm.importCsv(csv) },
+                            onImportValidatedTransactions = { txs -> settingsVm.importValidatedTransactions(txs) },
                             onExportFullBackup = { settingsVm.exportFullBackup() },
-                            onRestoreFullBackup = { json -> settingsVm.restoreFullBackup(json) }
+                            onRestoreFullBackup = { json -> settingsVm.restoreFullBackup(json) },
+                            onRunDataIntegrityAudit = { settingsVm.runDataIntegrityAudit() },
+                            onReconcileAll = { settingsVm.reconcileAll() }
                         )
                     }
                 }

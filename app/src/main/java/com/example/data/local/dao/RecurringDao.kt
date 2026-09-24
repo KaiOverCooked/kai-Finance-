@@ -35,6 +35,12 @@ interface RecurringDao {
     @Query("UPDATE recurring_transactions SET lastExecutedMillis = :timestamp, nextDueDateMillis = :nextDue WHERE id = :id")
     suspend fun markExecuted(id: Long, timestamp: Long, nextDue: Long)
 
+    @Query("SELECT MIN(nextDueDateMillis) FROM recurring_transactions WHERE isActive = 1")
+    suspend fun getEarliestNextDueDate(): Long?
+
+    @Query("SELECT * FROM recurring_transactions WHERE isActive = 1")
+    suspend fun getAllActiveList(): List<RecurringEntity>
+
     @Query("DELETE FROM recurring_transactions")
     suspend fun deleteAllRecurring()
 }

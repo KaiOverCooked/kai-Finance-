@@ -5,7 +5,7 @@ import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 object CurrencyFormatter {
-    private val idSymbols = DecimalFormatSymbols(Locale("id", "ID")).apply {
+    private val idSymbols = DecimalFormatSymbols(Locale.forLanguageTag("id-ID")).apply {
         groupingSeparator = '.'
         decimalSeparator = ','
     }
@@ -19,6 +19,10 @@ object CurrencyFormatter {
         } else {
             "$symbol $formattedNum"
         }
+    }
+
+    fun formatRupiah(amount: Double): String {
+        return format(amount, "Rp")
     }
 
     fun formatPlain(amount: Double): String {

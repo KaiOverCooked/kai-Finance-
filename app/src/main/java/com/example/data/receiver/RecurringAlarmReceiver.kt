@@ -30,7 +30,8 @@ class RecurringAlarmReceiver : BroadcastReceiver() {
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
-                RecurringScheduler.schedulePeriodicCheck(context)
+                // Smart Event-Driven Loop: Schedule the NEXT exact alarm after execution and advancing nextDueDate
+                RecurringScheduler.scheduleNextExactAlarm(context)
                 pendingResult.finish()
             }
         }

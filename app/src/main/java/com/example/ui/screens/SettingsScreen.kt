@@ -16,12 +16,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
@@ -29,8 +30,10 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -63,6 +67,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.integrity.DataIntegrityReport
+import com.example.data.local.entity.AccountEntity
+import com.example.data.local.entity.TransactionEntity
+import com.example.data.security.BiometricHelper
+import com.example.ui.components.CsvImportPreviewDialog
+import com.example.ui.components.DataIntegrityDialog
 import com.example.ui.components.GlassCard
 import com.example.ui.theme.AppThemeMode
 import kotlinx.coroutines.launch
@@ -74,12 +84,17 @@ fun SettingsScreen(
     onThemeChange: (AppThemeMode) -> Unit,
     isPinEnabled: Boolean,
     onSetPin: (String, Boolean) -> Unit,
+    isBiometricEnabled: Boolean = false,
+    onSetBiometricEnabled: (Boolean) -> Unit = {},
     currencySymbol: String,
     onCurrencyChange: (String) -> Unit,
+    accounts: List<AccountEntity> = emptyList(),
     onExportCsv: suspend () -> String,
-    onImportCsv: suspend (String) -> Int,
+    onImportValidatedTransactions: suspend (List<TransactionEntity>) -> Int,
     onExportFullBackup: suspend () -> String,
-    onRestoreFullBackup: suspend (String) -> Boolean
+    onRestoreFullBackup: suspend (String) -> Boolean,
+    onRunDataIntegrityAudit: suspend () -> DataIntegrityReport,
+    onReconcileAll: suspend () -> Int
 ) {
     val scrollState = rememberScrollState()
     val context = LocalContext.current
@@ -89,63 +104,61 @@ fun SettingsScreen(
     var showPinSheet by remember { mutableStateOf(false) }
     var pinInput by remember { mutableStateOf("") }
     var showCurrencyDropdown by remember { mutableStateOf(false) }
-    var showImportCsvDialog by remember { mutableStateOf(false) }
+    var showSafeCsvImportDialog by remember { mutableStateOf(false) }
     var showRestoreBackupDialog by remember { mutableStateOf(false) }
     var rawTextImport by remember { mutableStateOf("") }
-    var isBiometricSimulated by remember { mutableStateOf(false) }
 
+    // Data Integrity State
+    var showIntegrityDialog by remember { mutableStateOf(false) }
+    var integrityReport by remember { mutableStateOf<DataIntegrityReport?>(null) }
+    var isAuditing by remember { mutableStateOf(false) }
+
+    val canHardwareBiometric = remember(context) { BiometricHelper.isBiometricAvailable(context) }
     val currencies = listOf("Rp", "$", "€", "£", "¥", "₹")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color(0xFF0A0A0A))
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .padding(16.dp)
             .testTag("settings_screen")
     ) {
+        // Header
         Text(
-            text = "PREFERENCES & SECURITY",
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.45f),
-            letterSpacing = 1.sp
+            text = "Pengaturan",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
         )
         Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineLarge,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
+            text = "Keamanan, Kustomisasi, dan Audit Data",
+            style = MaterialTheme.typography.bodySmall,
+            color = Color.White.copy(alpha = 0.5f),
+            modifier = Modifier.padding(top = 2.dp, bottom = 20.dp)
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Appearance Theme (Dark / Light Mode)
+        // Theme Customization
         GlassCard(
             modifier = Modifier.padding(bottom = 12.dp),
             testTag = "theme_setting_card"
         ) {
             Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = Icons.Default.DarkMode, contentDescription = null, tint = Color.White)
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Appearance & Theme",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "Monochrome Luxury styling",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color.White.copy(alpha = 0.45f)
-                            )
-                        }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.DarkMode, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Tema Tampilan",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Pilih tema warna aplikasi",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.45f)
+                        )
                     }
                 }
 
@@ -186,7 +199,7 @@ fun SettingsScreen(
             }
         }
 
-        // Security: PIN & Biometric Lock
+        // Security: PIN Salted Hashing & Biometric
         GlassCard(
             modifier = Modifier.padding(bottom = 12.dp),
             testTag = "security_setting_card"
@@ -198,18 +211,18 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "PIN Lock Screen",
+                                text = "PIN Lock (Salted SHA-256)",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = if (isPinEnabled) "Proteksi PIN 4-Digit Aktif" else "Kunci aplikasi saat dibuka",
+                                text = if (isPinEnabled) "Proteksi PIN aktif (Tersimpan aman terenkripsi)" else "Kunci aplikasi saat dibuka",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.45f)
                             )
@@ -236,18 +249,18 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                         Icon(imageVector = Icons.Default.Fingerprint, contentDescription = null, tint = Color.White)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Biometric Authentication",
+                                text = "Autentikasi Biometrik",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = "Fingerprint / Face Unlock",
+                                text = if (canHardwareBiometric) "Fingerprint / Face Unlock sistem" else "Perangkat belum memiliki biometrik aktif",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.45f)
                             )
@@ -255,10 +268,61 @@ fun SettingsScreen(
                     }
 
                     Switch(
-                        checked = isBiometricSimulated,
-                        onCheckedChange = { isBiometricSimulated = it },
+                        checked = isBiometricEnabled,
+                        onCheckedChange = { onSetBiometricEnabled(it) },
+                        enabled = canHardwareBiometric,
                         colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = Color.White)
                     )
+                }
+            }
+        }
+
+        // Data Integrity & Balance Audit Card
+        GlassCard(
+            modifier = Modifier.padding(bottom = 12.dp),
+            testTag = "data_integrity_card"
+        ) {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.VerifiedUser, contentDescription = null, tint = Color.White)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Pemeriksaan Integritas Data",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Deteksi otomatis selisih saldo vs riwayat mutasi transaksi",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.45f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Button(
+                    onClick = {
+                        isAuditing = true
+                        showIntegrityDialog = true
+                        coroutineScope.launch {
+                            integrityReport = onRunDataIntegrityAudit()
+                            isAuditing = false
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("run_integrity_check_btn"),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E1E22), contentColor = Color.White),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Jalankan Audit Saldo & Data", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }
@@ -336,7 +400,7 @@ fun SettingsScreen(
                             color = Color.White
                         )
                         Text(
-                            text = "Export & Import CSV, Cadangan Penuh JSON",
+                            text = "Semua 9 Entitas: Transaksi, Akun, Hutang, Rutin, Budget, Investasi",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.45f)
                         )
@@ -346,7 +410,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // CSV Buttons
-                Text("CSV SPREADSHEET:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                Text("CSV SPREADSHEET (VALIDASI AMAN):", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -371,11 +435,8 @@ fun SettingsScreen(
                     }
 
                     Button(
-                        onClick = {
-                            rawTextImport = ""
-                            showImportCsvDialog = true
-                        },
-                        modifier = Modifier.weight(1f).height(42.dp),
+                        onClick = { showSafeCsvImportDialog = true },
+                        modifier = Modifier.weight(1f).height(42.dp).testTag("import_csv_btn"),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F1F1F), contentColor = Color.White),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                         shape = RoundedCornerShape(10.dp)
@@ -389,7 +450,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Full Database Backup & Restore
-                Text("DATABASE BACKUP & RESTORE:", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                Text("CADANGAN LENGKAP 9 ENTITAS (JSON):", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -403,7 +464,7 @@ fun SettingsScreen(
                                 Toast.makeText(context, "Cadangan Database lengkap disalin (${json.length} bytes)", Toast.LENGTH_LONG).show()
                             }
                         },
-                        modifier = Modifier.weight(1f).height(42.dp),
+                        modifier = Modifier.weight(1f).height(42.dp).testTag("backup_json_btn"),
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -417,7 +478,7 @@ fun SettingsScreen(
                             rawTextImport = ""
                             showRestoreBackupDialog = true
                         },
-                        modifier = Modifier.weight(1f).height(42.dp),
+                        modifier = Modifier.weight(1f).height(42.dp).testTag("restore_json_btn"),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F1F1F), contentColor = Color.White),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f)),
                         shape = RoundedCornerShape(10.dp)
@@ -440,13 +501,13 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = "Kai Finance Pro v2.0",
+                        text = "Kai Finance Pro v2.5",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = "Complete Wealth Management • Room DB v3 • Kai AI Strategist",
+                        text = "Room DB v4 • Exact Alarm Scheduler • Salted SHA-256 PIN • Data Integrity Checker",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.45f)
                     )
@@ -454,46 +515,94 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
-        // PIN Setup Sheet
+        // BottomSheet for PIN Setup
         if (showPinSheet) {
-            val sheetState = rememberModalBottomSheetState()
             ModalBottomSheet(
-                onDismissRequest = { showPinSheet = false },
-                sheetState = sheetState,
+                onDismissRequest = {
+                    showPinSheet = false
+                    pinInput = ""
+                },
+                sheetState = rememberModalBottomSheetState(),
                 containerColor = Color(0xFF141414)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp)
-                        .testTag("set_pin_sheet")
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Set 4-Digit Passcode",
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = "Atur PIN 4-Digit Baru",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    OutlinedTextField(
-                        value = pinInput,
-                        onValueChange = { if (it.length <= 4) pinInput = it },
-                        label = { Text("Masukkan 4 digit PIN") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("input_new_pin"),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color.White,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        singleLine = true
+                    Text(
+                        text = "PIN akan di-hash secara aman dengan Salted SHA-256.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                     )
+
+                    // Dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (i in 0 until 4) {
+                            val isFilled = i < pinInput.length
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isFilled) Color.White else Color.White.copy(alpha = 0.2f),
+                                modifier = Modifier.size(16.dp)
+                            ) {}
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    val keys = listOf(
+                        listOf("1", "2", "3"),
+                        listOf("4", "5", "6"),
+                        listOf("7", "8", "9"),
+                        listOf("C", "0", "⌫")
+                    )
+
+                    keys.forEach { row ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            row.forEach { key ->
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color(0xFF1F1F1F),
+                                    modifier = Modifier.size(60.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            when (key) {
+                                                "⌫" -> if (pinInput.isNotEmpty()) pinInput = pinInput.dropLast(1)
+                                                "C" -> pinInput = ""
+                                                else -> if (pinInput.length < 4) pinInput += key
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.Transparent,
+                                            contentColor = Color.White
+                                        ),
+                                        shape = CircleShape
+                                    ) {
+                                        Text(text = key, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -502,7 +611,7 @@ fun SettingsScreen(
                             if (pinInput.length == 4) {
                                 onSetPin(pinInput, true)
                                 showPinSheet = false
-                                Toast.makeText(context, "PIN berhasil diaktifkan", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "PIN berhasil disimpan dan diaktifkan", Toast.LENGTH_SHORT).show()
                             } else {
                                 Toast.makeText(context, "PIN harus 4 digit", Toast.LENGTH_SHORT).show()
                             }
@@ -513,7 +622,7 @@ fun SettingsScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Aktifkan PIN Lock", fontWeight = FontWeight.Bold)
+                        Text("Simpan & Aktifkan PIN", fontWeight = FontWeight.Bold)
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -521,48 +630,43 @@ fun SettingsScreen(
             }
         }
 
-        // Import CSV Dialog
-        if (showImportCsvDialog) {
-            AlertDialog(
-                onDismissRequest = { showImportCsvDialog = false },
-                title = { Text("Import Data CSV", color = Color.White, fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Paste teks CSV (Format: Title, Amount, Type, Category, Date, Note):", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-                        OutlinedTextField(
-                            value = rawTextImport,
-                            onValueChange = { rawTextImport = it },
-                            placeholder = { Text("Gaji, 5000.0, INCOME, SALARY, 2026-03-01, Monthly salary") },
-                            modifier = Modifier.fillMaxWidth().height(140.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Color.White,
-                                unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                                focusedTextColor = Color.White,
-                                unfocusedTextColor = Color.White
-                            )
-                        )
+        // Safe CSV Import Preview & Confirmation Dialog
+        if (showSafeCsvImportDialog) {
+            CsvImportPreviewDialog(
+                accounts = accounts,
+                onDismiss = { showSafeCsvImportDialog = false },
+                onConfirmImport = { transactions, count ->
+                    coroutineScope.launch {
+                        val imported = onImportValidatedTransactions(transactions)
+                        Toast.makeText(context, "Berhasil mengimpor $imported transaksi valid!", Toast.LENGTH_LONG).show()
+                        showSafeCsvImportDialog = false
+                    }
+                }
+            )
+        }
+
+        // Data Integrity Audit Dialog
+        if (showIntegrityDialog) {
+            DataIntegrityDialog(
+                report = integrityReport,
+                isLoading = isAuditing,
+                onDismiss = { showIntegrityDialog = false },
+                onRefreshAudit = {
+                    isAuditing = true
+                    coroutineScope.launch {
+                        integrityReport = onRunDataIntegrityAudit()
+                        isAuditing = false
                     }
                 },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            coroutineScope.launch {
-                                val count = onImportCsv(rawTextImport)
-                                Toast.makeText(context, "Berhasil mengimpor $count transaksi dari CSV!", Toast.LENGTH_LONG).show()
-                                showImportCsvDialog = false
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black)
-                    ) {
-                        Text("Import CSV")
+                onReconcileAll = {
+                    isAuditing = true
+                    coroutineScope.launch {
+                        val fixed = onReconcileAll()
+                        Toast.makeText(context, "Berhasil menyinkronkan $fixed ketidaksesuaian saldo!", Toast.LENGTH_LONG).show()
+                        integrityReport = onRunDataIntegrityAudit()
+                        isAuditing = false
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showImportCsvDialog = false }) {
-                        Text("Batal", color = Color.White.copy(alpha = 0.6f))
-                    }
-                },
-                containerColor = Color(0xFF141414)
+                }
             )
         }
 
@@ -570,10 +674,14 @@ fun SettingsScreen(
         if (showRestoreBackupDialog) {
             AlertDialog(
                 onDismissRequest = { showRestoreBackupDialog = false },
-                title = { Text("Restore Database Penuh (JSON)", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text("Restore Database Penuh 9 Entitas", color = Color.White, fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Paste isi JSON cadangan database:", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                        Text(
+                            "Paste isi JSON cadangan database (Format 9 Entitas: Transaksi, Akun, Hutang, Pembayaran, Rutin, Budget, Goals, Investasi, Notifikasi):",
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 12.sp
+                        )
                         OutlinedTextField(
                             value = rawTextImport,
                             onValueChange = { rawTextImport = it },
@@ -594,7 +702,7 @@ fun SettingsScreen(
                             coroutineScope.launch {
                                 val ok = onRestoreFullBackup(rawTextImport)
                                 if (ok) {
-                                    Toast.makeText(context, "Database berhasil dipulihkan secara menyeluruh!", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Database 9 entitas berhasil dipulihkan secara menyeluruh!", Toast.LENGTH_LONG).show()
                                 } else {
                                     Toast.makeText(context, "Gagal memulihkan database. Format tidak valid.", Toast.LENGTH_LONG).show()
                                 }

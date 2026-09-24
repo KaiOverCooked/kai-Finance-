@@ -403,4 +403,153 @@ class ExampleRobolectricTest {
         assertEquals(1, restoredNotifications.size)
         assertEquals("Pengingat Sistem", restoredNotifications[0].title)
     }
+
+    // 7. TEST ANALYTICS: Daily, Weekly, Monthly, Yearly Real Aggregations
+    @Test
+    fun testAnalyticsDataAggregation() = runBlocking {
+        val now = System.currentTimeMillis()
+        val dayMs = 24 * 60 * 60 * 1000L
+
+        val accId = repository.addAccount(AccountEntity(name = "BCA", type = AccountType.BANK, balance = 10000000.0))
+
+        // Transaksi 1: Income hari ini 5.000.000
+        repository.addTransaction(
+            TransactionEntity(
+                title = "Gaji Pokok",
+                amount = 5000000.0,
+                type = TransactionType.INCOME,
+                category = TransactionCategory.SALARY,
+                timestamp = now,
+                accountId = accId
+            )
+        )
+
+        // Transaksi 2: Expense kemarin 150.000
+        repository.addTransaction(
+            TransactionEntity(
+                title = "Supermarket",
+                amount = 150000.0,
+                type = TransactionType.EXPENSE,
+                category = TransactionCategory.FOOD,
+                timestamp = now - dayMs,
+                accountId = accId
+            )
+        )
+
+        // Transaksi 3: Expense 10 hari lalu (minggu lalu) 300.000
+        repository.addTransaction(
+            TransactionEntity(
+                title = "Bensin Pertamax",
+                amount = 300000.0,
+                type = TransactionType.EXPENSE,
+                category = TransactionCategory.TRANSPORT,
+                timestamp = now - 10 * dayMs,
+                accountId = accId
+            )
+        )
+
+        val allTxs = repository.allTransactions.first()
+        assertEquals(3, allTxs.size)
+
+        val totalIncome = allTxs.filter { it.type == TransactionType.INCOME && !it.isTransfer }.sumOf { it.amount }
+        val totalExpense = allTxs.filter { it.type == TransactionType.EXPENSE && !it.isTransfer }.sumOf { it.amount }
+
+        assertEquals(5000000.0, totalIncome, 0.01)
+        assertEquals(450000.0, totalExpense, 0.01)
+
+        // Filter mingguan (7 hari terakhir)
+        val sevenDaysAgo = now - 7 * dayMs
+        val last7DaysExpense = allTxs
+            .filter { it.type == TransactionType.EXPENSE && it.timestamp >= sevenDaysAgo && !it.isTransfer }
+            .sumOf { it.amount }
+        assertEquals(150000.0, last7DaysExpense, 0.01)
+    }
+
+    // 8. TEST DATA INTEGRITY: Mismatch Detection & Reconciliation
+    @Test
+    fun testDataIntegrityAndReconciliation() = runBlocking {
+        val accId = repository.addAccount(
+            AccountEntity(name = "Dompet Tunai", type = AccountType.CASH, balance = 1000000.0, initialBalance = 1000000.0)
+        )
+
+        // Tambah transaksi pengeluaran 200.000 -> saldo akun otomatis jadi 800.000
+        repository.addTransaction(
+            TransactionEntity(
+                title = "Beli Makan",
+                amount = 200000.0,
+                type = TransactionType.EXPENSE,
+                category = TransactionCategory.FOOD,
+                accountId = accId
+            )
+        )
+
+        val initialAudit = repository.runDataIntegrityCheck()
+        assertTrue(initialAudit.isHealthy)
+        assertEquals(0, initialAudit.accountIssues.count { it.isMismatch })
+
+        // Simulasikan anomali/bug saldo: saldo di database diubah secara paksa menjadi 500.000 (mismatch 300.000)
+        val acc = repository.getAccountById(accId)!!
+        database.accountDao().updateAccount(acc.copy(balance = 500000.0))
+
+        val bugAudit = repository.runDataIntegrityCheck()
+        assertEquals(false, bugAudit.isHealthy)
+        val issue = bugAudit.accountIssues.first { it.account.id == accId }
+        assertTrue(issue.isMismatch)
+        assertEquals(500000.0, issue.recordedBalance, 0.01)
+        assertEquals(800000.0, issue.calculatedBalance, 0.01)
+
+        // Jalankan rekonsiliasi otomatis
+        val fixedCount = repository.reconcileAllIntegrityIssues()
+        assertEquals(1, fixedCount)
+
+        val fixedAudit = repository.runDataIntegrityCheck()
+        assertTrue(fixedAudit.isHealthy)
+        val fixedAcc = repository.getAccountById(accId)!!
+        assertEquals(800000.0, fixedAcc.balance, 0.01)
+    }
+
+    // 9. TEST SAFE CSV VALIDATION
+    @Test
+    fun testCsvValidationAndImport() = runBlocking {
+        val rawCsv = """
+            title,amount,type,category,note
+            Gaji Kantor,15000000,INCOME,SALARY,Cair tgl 25
+            Kopi Kenangan,28000,EXPENSE,FOOD,Morning coffee
+            Baris Rusak,-5000,EXPENSE,OTHER,Minus amount
+            Baris Typo,abc,EXPENSE,FOOD,Not a number
+        """.trimIndent()
+
+        val summary = com.example.data.util.CsvValidator.validateCsv(rawCsv)
+        assertEquals(4, summary.totalFound)
+        assertEquals(2, summary.validCount)
+        assertEquals(2, summary.invalidCount)
+
+        val accId = repository.addAccount(AccountEntity(name = "Bank BCA", type = AccountType.BANK, balance = 0.0))
+        val entities = summary.toTransactionEntities(accId)
+        val imported = repository.importValidatedCsvTransactions(entities)
+
+        assertEquals(2, imported)
+        val acc = repository.getAccountById(accId)!!
+        // 15.000.000 - 28.000 = 14.972.000
+        assertEquals(14972000.0, acc.balance, 0.01)
+    }
+
+    // 10. TEST SECURITY: Salted SHA-256 PIN Hashing
+    @Test
+    fun testSaltedPinHashing() {
+        val pin = "1234"
+        val salt = com.example.data.security.SecurityHelper.generateSalt()
+        val hash1 = com.example.data.security.SecurityHelper.hashPin(pin, salt)
+        val hash2 = com.example.data.security.SecurityHelper.hashPin(pin, salt)
+
+        // Deterministic with same salt
+        assertEquals(hash1, hash2)
+
+        // Valid verify
+        assertTrue(com.example.data.security.SecurityHelper.verifyPin(pin, salt, hash1))
+
+        // Invalid verify
+        val wrongPin = "4321"
+        assertEquals(false, com.example.data.security.SecurityHelper.verifyPin(wrongPin, salt, hash1))
+    }
 }

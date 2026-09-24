@@ -84,7 +84,10 @@ class FinanceRepository(private val db: KaiDatabase) {
     }
 
     // 3. Accounts & Transfers (Transfers are NOT real income or expenses)
-    suspend fun addAccount(account: AccountEntity): Long = db.accountDao().insertAccount(account)
+    suspend fun addAccount(account: AccountEntity): Long {
+        val initial = if (account.initialBalance == 0.0 && account.balance != 0.0) account.balance else account.initialBalance
+        return db.accountDao().insertAccount(account.copy(initialBalance = initial))
+    }
     suspend fun updateAccount(account: AccountEntity) = db.accountDao().updateAccount(account)
     suspend fun deleteAccountById(id: Long) = db.accountDao().deleteAccountById(id)
     suspend fun getAccountById(id: Long): AccountEntity? = db.accountDao().getAccountById(id)
@@ -403,7 +406,18 @@ class FinanceRepository(private val db: KaiDatabase) {
         return count
     }
 
-    // 11. Complete Full Database Backup & Restore (All 8 Entities)
+    // 11. Complete Full Database Backup & Restore (All 9 Entities)
+    // Backup Tree Structure:
+    // Backup
+    // ├── Transactions
+    // ├── Accounts
+    // ├── Debts
+    // ├── Debt Payments
+    // ├── Recurring
+    // ├── Budgets
+    // ├── Goals
+    // ├── Investments
+    // └── Notifications
     suspend fun exportFullBackupJson(): String {
         val root = JSONObject()
         val txs = db.transactionDao().getAllTransactions().first()
@@ -415,7 +429,7 @@ class FinanceRepository(private val db: KaiDatabase) {
         val budgets = db.budgetDao().getAllBudgets().first()
         val goals = db.goalDao().getAllGoals().first()
 
-        root.put("version", 3)
+        root.put("version", 4)
         root.put("exportedAt", System.currentTimeMillis())
 
         // Transactions
@@ -445,6 +459,7 @@ class FinanceRepository(private val db: KaiDatabase) {
             obj.put("name", it.name)
             obj.put("type", it.type.name)
             obj.put("balance", it.balance)
+            obj.put("initialBalance", it.initialBalance)
             obj.put("accountNumber", it.accountNumber)
             obj.put("institutionName", it.institutionName)
             obj.put("isDefault", it.isDefault)
@@ -587,12 +602,15 @@ class FinanceRepository(private val db: KaiDatabase) {
                 val accArray = root.getJSONArray("accounts")
                 for (i in 0 until accArray.length()) {
                     val obj = accArray.getJSONObject(i)
+                    val balance = obj.getDouble("balance")
+                    val initialBalance = obj.optDouble("initialBalance", balance)
                     db.accountDao().insertAccount(
                         AccountEntity(
                             id = obj.optLong("id", 0),
                             name = obj.getString("name"),
                             type = AccountType.valueOf(obj.getString("type")),
-                            balance = obj.getDouble("balance"),
+                            balance = balance,
+                            initialBalance = initialBalance,
                             accountNumber = obj.optString("accountNumber", ""),
                             institutionName = obj.optString("institutionName", ""),
                             isDefault = obj.optBoolean("isDefault", false),
@@ -858,5 +876,34 @@ class FinanceRepository(private val db: KaiDatabase) {
             NotificationEntity(title = "Dividen Diterima", message = "Dividen BBCA sebesar $420 telah dicatat ke portofolio.", timestamp = now - 2 * dayMs, type = NotificationType.SAVINGS_MILESTONE)
         )
         sampleNotifications.forEach { db.notificationDao().insertNotification(it) }
+    }
+
+    // 12. Data Integrity & Reconcile Engine
+    private val integrityChecker by lazy { com.example.data.integrity.DataIntegrityChecker(db) }
+
+    suspend fun runDataIntegrityCheck(): com.example.data.integrity.DataIntegrityReport {
+        return integrityChecker.runAudit()
+    }
+
+    suspend fun reconcileAccountBalance(accountId: Long): Boolean {
+        return integrityChecker.reconcileAccountBalance(accountId)
+    }
+
+    suspend fun reconcileAllIntegrityIssues(): Int {
+        return integrityChecker.reconcileAll()
+    }
+
+    // 13. Validated CSV Transactions Import
+    suspend fun importValidatedCsvTransactions(transactions: List<TransactionEntity>): Int {
+        var count = 0
+        transactions.forEach {
+            addTransaction(it)
+            count++
+        }
+        return count
+    }
+
+    suspend fun getEarliestNextRecurringDueDate(): Long? {
+        return db.recurringDao().getEarliestNextDueDate()
     }
 }

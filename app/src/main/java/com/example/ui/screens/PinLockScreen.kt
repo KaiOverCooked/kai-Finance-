@@ -15,17 +15,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,13 +39,37 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
+import com.example.data.security.BiometricHelper
+import kotlinx.coroutines.launch
 
 @Composable
 fun PinLockScreen(
-    onUnlock: (String) -> Boolean
+    isBiometricEnabled: Boolean = false,
+    onUnlock: suspend (String) -> Boolean,
+    onBiometricUnlock: () -> Unit
 ) {
     var pinInput by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val canBiometric = remember(context) { BiometricHelper.isBiometricAvailable(context) }
+
+    fun triggerBiometric() {
+        val activity = context as? FragmentActivity
+        if (activity != null && canBiometric) {
+            BiometricHelper.authenticateWithBiometrics(
+                activity = activity,
+                onSuccess = { onBiometricUnlock() },
+                onError = { _: Int, _: CharSequence -> /* Fallback to PIN seamlessly */ }
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (isBiometricEnabled && canBiometric) {
+            triggerBiometric()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -79,7 +107,7 @@ fun PinLockScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Enter Passcode",
+            text = "Masukkan PIN",
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -102,9 +130,9 @@ fun PinLockScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(40.dp))
 
-        // Keypad Grid 1-9, 0, Backspace
+        // Keypad Grid
         val keys = listOf(
             listOf("1", "2", "3"),
             listOf("4", "5", "6"),
@@ -136,10 +164,12 @@ fun PinLockScreen(
                                         if (pinInput.length < 4) {
                                             pinInput += key
                                             if (pinInput.length == 4) {
-                                                val success = onUnlock(pinInput)
-                                                if (!success) {
-                                                    Toast.makeText(context, "Incorrect Passcode", Toast.LENGTH_SHORT).show()
-                                                    pinInput = ""
+                                                coroutineScope.launch {
+                                                    val success = onUnlock(pinInput)
+                                                    if (!success) {
+                                                        Toast.makeText(context, "PIN tidak cocok", Toast.LENGTH_SHORT).show()
+                                                        pinInput = ""
+                                                    }
                                                 }
                                             }
                                         }
@@ -160,6 +190,19 @@ fun PinLockScreen(
                         }
                     }
                 }
+            }
+        }
+
+        if (canBiometric) {
+            Spacer(modifier = Modifier.height(24.dp))
+            OutlinedButton(
+                onClick = { triggerBiometric() },
+                shape = CircleShape,
+                modifier = Modifier.testTag("biometric_login_btn")
+            ) {
+                Icon(Icons.Default.Fingerprint, contentDescription = "Biometrik", modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Buka dengan Biometrik", fontSize = 13.sp)
             }
         }
     }
